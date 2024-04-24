@@ -1,109 +1,196 @@
 import random
 import sys
-class SpecificWay:
-    def __init__(self, sequence_of_cities, fitness_score):
-        self.sequence_of_cities = sequence_of_cities
-        self.fitness_score = fitness_score
-        self.accumulative_fitness_value = None
+import awoc
+from countryinfo import CountryInfo
+from math import radians, sin, cos, acos
+import tkinter as tk
+
+Population_Size = 10
+Generation_Number = 5
+root = tk.Tk()
+root.geometry("400x200")
+title = tk.Label(root, text = "Randomly generation of N cities", font = ('Arial',18))
+title.pack(pady = 10)
+message = tk.Label(root, text = "Please enter value of N: ")
+message.pack(pady = 10)
+number_var = tk.StringVar()
+
+my_world = awoc.AWOC()
+get_countries_list = my_world.get_countries_list()
+
+class SpecificWay_Individ:
+    def __init__ (self,first_generation = False):
+        number = int(number_var.get())
+        counter = 0  
+        self.N_random_country = []
+        if(first_generation):
+            while counter < number:
+                random_country = random.randint(0,len(get_countries_list)-1)
+                country_to_add = get_countries_list[random_country]            
+                country = CountryInfo(country_to_add)
+                try:
+                    country.capital_latlng()
+                except Exception as e:                
+                    continue
+                already_added_such_country = False
+                for country in self.N_random_country:
+                    if(country == country_to_add):
+                        already_added_such_country = True
+                if(already_added_such_country):continue     
+                self.N_random_country.append(country_to_add)
+                counter =counter + 1
+            self.N_random_country.append(self.N_random_country[0])
+            
+    def Sum_Of_Distancies(self):
+        sum_of_distancies = 0
+        for i in range(len(self.N_random_country)-1):
+            country_i = CountryInfo(self.N_random_country[i])
+            country_i1 = CountryInfo(self.N_random_country[i+1])
+            mlat = radians(float(country_i.latlng()[0]))
+            mlon = radians(float(country_i.latlng()[1]))
+            plat = radians(float(country_i1.latlng()[0]))
+            plon = radians(float(country_i1.latlng()[1]))
+            dist = 6371.01 * acos(sin(mlat)*sin(plat) + cos(mlat)*cos(plat)*cos(mlon - plon))
+            sum_of_distancies += dist
+        return sum_of_distancies
     
-class Population:
-    
-    #def __init__(self):
-    #    self.population = []
-    def __init__(self, cities = None, city_number = None , population_size = None, distancies = None):
+    def Mutation(self):
+        random_index_1 = random.randint(1,len(self.N_random_country)-2)
+        random_index_2 = random.randint(1,len(self.N_random_country)-2)
+        while(random_index_1 == random_index_2):          
+            random_index_1 = random.randint(1,len(self.N_random_country)-2)
+            random_index_2 = random.randint(1,len(self.N_random_country)-2)
+        temp = self.N_random_country[random_index_1]
+        self.N_random_country[random_index_1] = self.N_random_country[random_index_2]
+        self.N_random_country[random_index_2] = temp
+        
+class Set_Of_Specific_Ways_Population:
+    def __init__ (self,Population):
         self.population = []
-        if cities and city_number and population_size and distancies:
-            for n in range(population_size):
-                one_way = Population.random_sequence_of_cities(cities,city_number)
-                one_way_object = SpecificWay(one_way, self.fitness_score_determination(one_way,cities,distancies))
-                self.population.append(one_way_object)
-    '''
-    def _init__(self, *args):
-        if len(args) == 0:
-            self.population = []
-        elif len(args) > 0:
-            self.population = []
-            for n in range(args[2]):
-                one_way = Population.random_sequence_of_cities(args[0],args[1])
-                one_way_object = SpecificWay(one_way, self.fitness_score_determination(one_way,args[0],args[3]))
-                self.population.append(one_way_object)
-    '''
-    @staticmethod
-    def random_sequence_of_cities(cities, N):
-        '''
-        Generating initial population of cities randomly selected from all 
-        possible permutations  of the given cities
-        Input:
-        1- Cities list 
-        2. Number of population 
-        Output:
-        Generated lists of cities
-        '''
-        init_pop = []
-        while(len(init_pop) < N-1):
-            random_number = random.randint(0, N-1)
-            alreadyAdded = False
-            for k in init_pop:
-                if(k == cities[random_number]): 
-                    alreadyAdded = True
-            if not alreadyAdded:
-                init_pop.append(cities[random_number])
-        init_pop.append(init_pop[0])
-        return init_pop
-    def auxiliary_function(cities,city):
-        for n in range(len(cities)):
-            if(cities[n] == city): return n
-    def fitness_score_determination(self,one_way,cities,distancies):
-        fitness_score = 0
-        for n in range(len(one_way)-1):
-            dist = distancies[Population.auxiliary_function(cities,one_way[n])][Population.auxiliary_function(cities,one_way[n+1])]
-            if(dist == sys.maxsize): continue
-            fitness_score += dist
-        return fitness_score
-    def print_population(self):
-        for individ in self.population:
-            print(individ.sequence_of_cities)
-            print(individ.fitness_score)
-            print(individ.accumulative_fitness_value)
-    def selection(self):
-        sum = 0
-        for way in self.population:
-            sum += way.fitness_score
-        for way in self.population:
-            way.fitness_score = way.fitness_score/sum
-        for n in range(len(self.population)):
-            accumulative_fitness_value = self.population[0].fitness_score
-            for counter in range(n):
-                accumulative_fitness_value += self.population[counter].fitness_score
-            self.population[n].accumulative_fitness_value = accumulative_fitness_value
-        random_number = random.uniform(0,1)
-        new_population = Population()
-        for individ in self.population:
-            if(individ.accumulative_fitness_value < random_number):
-                new_population.population.append(individ)
-        return new_population
+        self.fitness_scores = {}
+        self.population_fitness_probs_cumsum = {}
         
-def main():
-    population_size = 10
-    cities = ["Foti", "Batumi", "Ureki", "Qobuleti", "Gori", "Kutaisi", "Tbilisi", "Mtskheta", "Telavi", "Oni"]
-    distancies = [[0,10,18,60,9,30,33,66,56,8],
-                  [10,0,88,42,sys.maxsize,18,11,sys.maxsize,12,sys.maxsize],
-                  [18,88,0,40,9,30,39,66,56,18],
-                  [60,42,40,0,19,30,33,55,56,1],
-                  [9,sys.maxsize,9,sys.maxsize,10,30,33,64,56,85],
-                  [30,18,sys.maxsize,85,9,50,12,66,56,48],
-                  [33,11,18,sys.maxsize,9,30,10,66,56,sys.maxsize],
-                  [66,sys.maxsize,18,60,39,30,33,0,56,8],
-                  [56,12,18,60,9,sys.maxsize,33,64,0,8],
-                  [8,sys.maxsize,28,sys.maxsize,9,30,33,66,56,0]
-                  ]
-    new_obj = Population(cities = cities,city_number = len(cities),population_size = population_size,distancies = distancies)
-    new_obj.print_population()
-    new_population = new_obj.selection()
-    new_obj.print_population()
-    new_population.print_population()
-        
+    def distancies_for_all_individes(self):
+        Distancies = []
+        for individ in self.population:
+            Distancies.append(individ.Sum_Of_Distancies())
+        for distance in Distancies:
+            print(" %.2fkm" % distance)
+        return Distancies
     
-if __name__ == "__main__":
-    main()
+    def minimal_distance(self):
+        Distancies = self.distancies_for_all_individes()
+        minimalDistance = Distancies[0]
+        for distance in Distancies:
+            if(distance<=minimalDistance): minimalDistance = distance
+        print("minimal distance for current population: ", minimalDistance)
+    
+    def determination_Of_Fitness_Scores(self):
+        sumOfAllIndividesDistancies = 0
+        fitnessScoreAdditional = {}
+        for individes in self.population:
+            sumOfAllIndividesDistancies += individes.Sum_Of_Distancies()
+        print("sum of all individes distancies : ",sumOfAllIndividesDistancies)
+        for individes in self.population:
+            fitnessScoreAdditional[individes] = sumOfAllIndividesDistancies/individes.Sum_Of_Distancies()
+        #print("additional fitness scores:")
+        #for key,value in fitnessScoreAdditional.items():
+        #    print(key.N_random_country,' ',value)
+        fitnessScoreAdditionalSum = 0
+        for value in fitnessScoreAdditional.values():
+            fitnessScoreAdditionalSum += value
+        #print("sum of additional fitness scores : ",fitnessScoreAdditionalSum)
+        for key,value in fitnessScoreAdditional.items():
+            self.fitness_scores[key] = value/fitnessScoreAdditionalSum
+        #print("fitness scores:")
+        #for key,value in self.fitness_scores.items():
+         #   print(key.N_random_country,' ',value) 
+    
+    def roulette_wheel(self):
+        sum = 0
+        for key,value in self.fitness_scores.items():
+            sum += value
+            self.population_fitness_probs_cumsum[key] = sum
+        #print("population_fitness_probs_cumsum : ")
+        #for key,value in self.population_fitness_probs_cumsum.items():
+         #   print(key.N_random_country," ",value)
+        random_number = random.uniform(0,1)
+        #print("random number : ",random_number)
+        for key,value in self.population_fitness_probs_cumsum.items():
+            if(value>random_number): 
+                return key
+            
+    def cross_over(self):
+        number = int(number_var.get())
+        parent_1 = self.roulette_wheel()
+        parent_2 = self.roulette_wheel()
+        print("parent 1 : ",parent_1.N_random_country)
+        print("parent 2 : ",parent_2.N_random_country)
+        random_start_index = random.randint(1,len(parent_1.N_random_country)-2)
+        random_end_index = random.randint(1,len(parent_1.N_random_country)-2)        
+        if(random_start_index>=random_end_index):
+            temp = random_start_index
+            random_start_index=random_end_index
+            random_end_index = temp
+        #print("random start index : ",random_start_index)
+        #print("random end index : ",random_end_index)
+        offspring1 = SpecificWay_Individ()
+        for index in range(random_start_index):
+            offspring1.N_random_country.append(parent_1.N_random_country[index])
+        for index in range(random_start_index,random_end_index+1):
+            offspring1.N_random_country.append(parent_2.N_random_country[index])
+        for index in range(random_end_index+1,number+1):
+            offspring1.N_random_country.append(parent_1.N_random_country[index])
+        offspring2 = SpecificWay_Individ()
+        for index in range(random_start_index):
+            offspring2.N_random_country.append(parent_2.N_random_country[index])
+        for index in range(random_start_index,random_end_index+1):
+            offspring2.N_random_country.append(parent_1.N_random_country[index])
+        for index in range(random_end_index+1,number+1):
+            offspring2.N_random_country.append(parent_2.N_random_country[index])
+        print("offspring 1 : ",offspring1.N_random_country," ",offspring1.Sum_Of_Distancies())
+        print("offspring 2 : ",offspring2.N_random_country," ",offspring2.Sum_Of_Distancies())
+        if(offspring1.Sum_Of_Distancies()<offspring2.Sum_Of_Distancies()): return offspring1
+        else: return offspring2
+        
+class GeneticAlgorithm:
+    @staticmethod
+    def applyGeneticAlgorithm(initialPopulation):
+        number = int(number_var.get())
+        currentPopulation = initialPopulation
+        for i in range(Generation_Number-1):
+            print("generation ",i+1)
+            nextPopulation = Set_Of_Specific_Ways_Population(Population_Size)
+            print("Distancies for current population:")
+            currentPopulation.minimal_distance()
+            currentPopulation.determination_Of_Fitness_Scores()
+            for counter in range(Population_Size):
+                print("child ",counter+1)
+                nextPopulation.population.append(currentPopulation.cross_over())
+                random_number_for_mutation = random.uniform(0,1)
+                if(random_number_for_mutation<0.2):
+                    nextPopulation.population[counter].Mutation()
+                    print("current child underwent mutation.")
+                
+            currentPopulation = nextPopulation
+        print("generation ",Generation_Number)
+        print("Distancies for current population:")
+        currentPopulation.minimal_distance()
+        currentPopulation.determination_Of_Fitness_Scores()
+            
+Population = Set_Of_Specific_Ways_Population(Population_Size)
+       
+def generate():
+    for population_counter in range(Population_Size): 
+        Population.population.append(SpecificWay_Individ(first_generation=True))
+    print("Initial Population : ")
+    for individ in Population.population:
+        print("Individ ",individ.N_random_country)   
+    GeneticAlgorithm.applyGeneticAlgorithm(Population)    
+    
+number = tk.Entry(root, textvariable=number_var)
+number.pack(pady = 10)
+button = tk.Button(root, text = "Generate", font =('Arial',18), command = generate)
+button.pack(pady = 10)    
+root.mainloop()
 
